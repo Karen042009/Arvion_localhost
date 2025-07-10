@@ -1,4 +1,3 @@
-# your_app/face_recognition_service.py
 import os, pickle
 from collections import Counter
 import cv2, mediapipe as mp, numpy as np

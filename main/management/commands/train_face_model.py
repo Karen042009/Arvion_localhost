@@ -1,9 +1,8 @@
-# your_app/management/commands/train_face_model.py
 import os, pickle, cv2, mediapipe as mp, numpy as np
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from sklearn.neighbors import KNeighborsClassifier
-from main.models import UserFaceImage # Փոխարինեք 'main'-ը ձեր հավելվածի իրական անունով
+from main.models import UserFaceImage 
 
 mp_face_mesh = mp.solutions.face_mesh
 def extract_embedding(image):

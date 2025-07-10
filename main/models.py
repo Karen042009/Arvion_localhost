@@ -1,7 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 import uuid
-# Ավելացրու սա models.py-ի սկզբում, import-ներից հետո
 import os
 
 def face_recognition_image_path(instance, filename):
@@ -83,18 +82,11 @@ class Allergy(models.Model):
 
 
 def profile_pic_path(instance, filename):
-    """
-    Նկարները կվերբեռնվեն MEDIA_ROOT/profile_pics/<user_email>/<filename> ճանապարհով։
-    instance-ը CustomUser օբյեկտն է։
-    """
-    # Քանի որ instance-ն արդեն CustomUser օբյեկտն է, մենք պարզապես դիմում ենք նրա email դաշտին
     folder_name = instance.email if instance.email else str(instance.id)
-    # Ես փոխել եմ "face" թղթապանակի անունը "profile_pics"-ի՝ ավելի տրամաբանական լինելու համար
     return os.path.join("face", folder_name, filename)
 
 
 class CustomUser(AbstractUser):
-    # ... (date_of_birth, gender, phone_number, address, emergency_contact_phone) ...
     date_of_birth = models.DateField(
         null=True, blank=True, verbose_name="Ծննդյան ամսաթիվ"
     )
@@ -109,7 +101,6 @@ class CustomUser(AbstractUser):
         max_length=25, blank=True, verbose_name="Վստահված հեռախոսահամար"
     )
 
-    # Կիրառում ենք մեր նոր, ընդհանուր ֆունկցիան
     profile_picture = models.ImageField(
         upload_to=profile_pic_path, null=True, blank=True, verbose_name="Պրոֆիլի նկար"
     )
@@ -230,27 +221,10 @@ class PatientSurgery(models.Model):
         unique_together = ("patient", "surgery")
 
 
-import os  # Համոզվիր, որ os-ը import արված է ֆայլի սկզբում
-
-# ... քո մյուս import-ները և մոդելները
-
-
-# ԱՎԵԼԱՑՐՈՒ ԱՅՍ ՖՈՒՆԿՑԻԱՆ
 def user_directory_path(instance, filename):
-    """
-    Ֆայլերը կվերբեռնվեն MEDIA_ROOT/face_recognition_images/<user_email>/<filename> ճանապարհով
-    instance - UserFaceImage մոդելի օբյեկտն է, որը պահպանվում է
-    filename - ֆայլի օրիգինալ անվանումն է
-    """
     user_email = instance.user.email
-    # os.path.join-ը ստեղծում է ճիշտ ճանապարհ՝ անկախ օպերացիոն համակարգից
     return os.path.join("face", user_email, filename)
 
-
-# ...
-
-
-# Ավելացրու սա models.py-ի ամենավերջում
 
 class UserFaceImage(models.Model):
     user = models.ForeignKey(
