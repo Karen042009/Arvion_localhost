@@ -1,0 +1,98 @@
+<!-- templates/add_photo.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="{% static 'CSS/profile.css' %}" /> <!-- Կարող ենք օգտագործել profile.css-ը -->
+    <link rel="stylesheet" href="{% static 'CSS/add_photo.css' %}" /> <!-- Կամ ստեղծել նորը -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ավելացնել նկար - Arvion</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+</head>
+<body>
+    <header class="page-header container">
+      <a href="{% url 'arvion' %}" class="logo">
+        <img src="{% static 'images/LogoIcon.png' %}" alt="Arvion Logo" class="logo-img" />
+        <span>Arvion</span>
+      </a>
+      <div class="header-actions">
+        <div class="header-user-info">
+          <div class="name">{{ user.get_full_name|default:user.username }}</div>
+          <div class="email">{{ user.email }}</div>
+        </div>
+        <img src="{% if user.profile_picture %}{{ user.profile_picture.url }}{% else %}{% static 'images/default_avatar.png' %}{% endif %}" alt="User Avatar" class="header-user-avatar" />
+      </div>
+    </header>
+
+    <main class="page-main container">
+        <aside class="profile-sidebar">
+            <nav class="sidebar-nav">
+                <ul>
+                    <li><a href="{% url 'profile' %}"><i class="fa-solid fa-user-circle"></i> Իմ Պրոֆիլը</a></li>
+                    <li><a href="{% url 'qr_code' %}"><i class="fa-solid fa-qrcode"></i> QR կոդ</a></li>
+                    <li><a href="https://t.me/Karen12321"><i class="fa-solid fa-microchip"></i> NFC քարտեր</a></li>
+                    <li><a href="{% url 'find_hospital' %}"><i class="fa-solid fa-hospital"></i> Որոնել հիվանդանոց</a></li>
+                    {% if not user.doctor_profile %}
+                    <!-- Այս կետը դարձնում ենք ակտիվ -->
+                    <li><a href="{% url 'add_photo' %}" class="active"><i class="fa-solid fa-camera-retro"></i> Ավելացնել նկար</a></li>
+                    {% endif %}
+                    {% if user.doctor_profile %}
+                    <li><a href="{% url 'search_patient_by_photo' %}"><i class="fa-solid fa-user-magnifying-glass"></i> Որոնել պացիենտ</a></li>
+                    {% endif %}
+                    <li><a href="{% url 'settings' %}"><i class="fa-solid fa-gear"></i> Կարգավորումներ</a></li>
+                    <li><a href="{% url 'logout' %}"><i class="fa-solid fa-arrow-right-from-bracket"></i> Ելք</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <section class="profile-content">
+            <div class="upload-section">
+                <h2 class="section-title">Վերբեռնել նոր նկար</h2>
+                <p class="section-description">
+                    Վերբեռնեք ձեր դեմքի պարզ, լուսավոր նկարներ։ Սա կօգնի բժիշկներին արագ ճանաչել ձեզ արտակարգ իրավիճակներում։
+                </p>
+
+                <!-- Հաղորդագրությունների բլոկ -->
+                {% if messages %}
+                    <div class="messages">
+                        {% for message in messages %}
+                            <div class="message {{ message.tags }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <form method="post" enctype="multipart/form-data" class="upload-form">
+                    {% csrf_token %}
+                    <div class="file-input-wrapper">
+                        <input type="file" name="face_photo" id="face_photo" class="file-input" accept="image/png, image/jpeg" required>
+                        <label for="face_photo" class="file-input-label">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                            <span>Ընտրել ֆայլ...</span>
+                        </label>
+                    </div>
+                    <button type="submit" class="btn-upload">
+                        <i class="fa-solid fa-upload"></i> Վերբեռնել
+                    </button>
+                </form>
+            </div>
+
+            <div class="gallery-section">
+                <h2 class="section-title">Ձեր վերբեռնած նկարները</h2>
+                {% if user_images %}
+                    <div class="image-gallery">
+                        {% for img in user_images %}
+                            <div class="gallery-item">
+                                <img src="{{ img.image.url }}" alt="Վերբեռնված նկար">
+                                <small>{{ img.uploaded_at|date:"d.m.Y H:i" }}</small>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p>Դուք դեռևս նկարներ չեք վերբեռնել։</p>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+</body>
+</html>

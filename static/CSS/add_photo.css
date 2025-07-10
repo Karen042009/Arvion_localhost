@@ -1,0 +1,121 @@
+/* static/CSS/add_photo.css */
+
+.upload-section, .gallery-section {
+    background-color: var(--card-bg, #0c3061);
+    padding: 25px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    border: 1px solid var(--border-color);
+}
+
+.section-description {
+    color: var(--text-secondary);
+    margin-top: -15px;
+    margin-bottom: 20px;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.upload-form {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.file-input-wrapper {
+    position: relative;
+    overflow: hidden;
+    display: inline-block;
+}
+
+.file-input {
+    position: absolute;
+    font-size: 100px;
+    left: 0;
+    top: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.file-input-label {
+    background-color: var(--secondary-bg);
+    color: var(--text-primary);
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid var(--border-color);
+}
+
+.file-input-label:hover {
+    background-color: #043873;
+}
+
+.btn-upload {
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background-color: var(--accent-color);
+    color: var(--primary-bg);
+    text-decoration: none;
+    transition: background-color 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-upload:hover {
+    background-color: #79bbff;
+}
+
+/* Gallery */
+.image-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.gallery-item {
+    text-align: center;
+}
+
+.gallery-item img {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 2px solid var(--border-color);
+    margin-bottom: 5px;
+}
+
+.gallery-item small {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* Messages */
+.messages {
+    margin-bottom: 20px;
+}
+.message {
+    padding: 12px;
+    border-radius: 8px;
+    color: white;
+}
+.message.success { background-color: #28a745; }
+.message.error { background-color: #dc3545; }
+.message.info { background-color: #17a2b8; }
+.message.warning { background-color: #ffc107; }
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .upload-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

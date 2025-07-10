@@ -25,4 +25,5 @@ urlpatterns = [
         "search/photo/", views.search_patient_by_photo, name="search_patient_by_photo"
     ),
     path("patient/<int:user_id>/", views.patient_details_view, name="patient_details"),
+    path('add-photo/', views.add_photo_view, name='add_photo'),
 ]

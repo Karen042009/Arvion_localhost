@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+import uuid
 
 
 class Gender(models.Model):
@@ -69,10 +70,15 @@ class Allergy(models.Model):
     def __str__(self):
         return self.name
 
-
-import uuid
-
-
+def profile_pic_path(instance, filename):
+    """
+    Նկարները կվերբեռնվեն MEDIA_ROOT/profile_pics/<user_email>/<filename> ճանապարհով։
+    instance-ը CustomUser օբյեկտն է։
+    """
+    # Քանի որ instance-ն արդեն CustomUser օբյեկտն է, մենք պարզապես դիմում ենք նրա email դաշտին
+    folder_name = instance.email if instance.email else str(instance.id)
+    # Ես փոխել եմ "face" թղթապանակի անունը "profile_pics"-ի՝ ավելի տրամաբանական լինելու համար
+    return os.path.join('face', folder_name, filename)
 class CustomUser(AbstractUser):
     date_of_birth = models.DateField(
         null=True, blank=True, verbose_name="Ծննդյան ամսաթիվ"
@@ -88,8 +94,12 @@ class CustomUser(AbstractUser):
         max_length=25, blank=True, verbose_name="Վստահված հեռախոսահամար"
     )
     profile_picture = models.ImageField(
-        upload_to="profile_pics/", null=True, blank=True, verbose_name="Պրոֆիլի նկար"
+        upload_to=profile_pic_path, # Նախկին "profile_pics/"-ի փոխարեն նշում ենք մեր ֆունկցիան
+        null=True, 
+        blank=True, 
+        verbose_name="Պրոֆիլի նկար"
     )
+    
     public_profile_id = models.UUIDField(
         default=uuid.uuid4, editable=False, unique=True, verbose_name="Հանրային ID (QR)"
     )
@@ -203,3 +213,46 @@ class PatientSurgery(models.Model):
 
     class Meta:
         unique_together = ("patient", "surgery")
+
+
+import os  # Համոզվիր, որ os-ը import արված է ֆայլի սկզբում
+
+# ... քո մյուս import-ները և մոդելները
+
+
+# ԱՎԵԼԱՑՐՈՒ ԱՅՍ ՖՈՒՆԿՑԻԱՆ
+def user_directory_path(instance, filename):
+    """
+    Ֆայլերը կվերբեռնվեն MEDIA_ROOT/face_recognition_images/<user_email>/<filename> ճանապարհով
+    instance - UserFaceImage մոդելի օբյեկտն է, որը պահպանվում է
+    filename - ֆայլի օրիգինալ անվանումն է
+    """
+    user_email = instance.user.email
+    # os.path.join-ը ստեղծում է ճիշտ ճանապարհ՝ անկախ օպերացիոն համակարգից
+    return os.path.join("face", user_email, filename)
+
+
+# ...
+
+
+# Այժմ փոփոխիր UserFaceImage մոդելը
+class UserFaceImage(models.Model):
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="face_images",
+        verbose_name="Օգտատեր",
+    )
+    # Այստեղ upload_to-ին տալիս ենք մեր ստեղծած ֆունկցիան
+    image = models.ImageField(upload_to=user_directory_path, verbose_name="Նկար")
+    uploaded_at = models.DateTimeField(
+        auto_now_add=True, verbose_name="Վերբեռնման ամսաթիվ"
+    )
+
+    class Meta:
+        verbose_name = "Դեմքի նկար"
+        verbose_name_plural = "Դեմքի նկարներ"
+        ordering = ["-uploaded_at"]
+
+    def __str__(self):
+        return f"Նկար {self.user.username}-ի համար, վերբեռնված՝ {self.uploaded_at.strftime('%Y-%m-%d %H:%M')}"

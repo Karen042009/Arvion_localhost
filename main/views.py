@@ -478,3 +478,58 @@ def patient_details_view(request, user_id):
         ),
     }
     return render(request, "patient_details.html", context)
+
+# views.py
+
+# Avelacru importneri cankum
+from .models import UserFaceImage
+
+# ... qo mnacac view-nery
+
+@login_required
+def add_photo_view(request):
+    # Ստուգում, որ միայն պացիենտները կարողանան նկար ավելացնել
+    if not hasattr(request.user, 'patient_profile'):
+        messages.error(request, 'Միայն պացիենտները կարող են իրենց նկարներն ավելացնել։')
+        return redirect('profile')
+
+    # Եթե POST հարցում է (ֆորման ուղարկվել է)
+    if request.method == 'POST':
+        if 'face_photo' in request.FILES:
+            image_file = request.FILES['face_photo']
+
+            # Ստուգում, թե արդյոք նկարում դեմք կա (օգտագործելով քո իսկ ֆունկցիան)
+            # Ֆայլը կարդում ենք հիշողության մեջ, որպեսզի cv2-ը կարողանա մշակել
+            try:
+                image_data = image_file.read()
+                nparr = np.frombuffer(image_data, np.uint8)
+                image_cv2 = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+                embedding = extract_embedding(image_cv2) # Քո իսկ extract_embedding ֆունկցիան
+
+                if embedding is None:
+                    messages.error(request, 'Նկարում դեմք չի հայտնաբերվել։ Խնդրում ենք փորձել ավելի պարզ, լուսավոր և դիմային նկար։')
+                else:
+                    # Եթե դեմքը հայտնաբերվել է, պահպանում ենք նկարը
+                    # Ֆայլի կուրսորը վերադարձնում ենք սկիզբ, քանի որ .read()-ից հետո այն վերջում է
+                    image_file.seek(0)
+                    UserFaceImage.objects.create(user=request.user, image=image_file)
+                    messages.success(request, 'Նկարը հաջողությամբ վերբեռնվեց։')
+                    # Այստեղ կարելի է ավելացնել տրամաբանություն, որը ավտոմատ կվերամարզի մոդելը
+                    # օրինակ՝ call_command('train_face_model')
+
+            except Exception as e:
+                messages.error(request, f'Նկարը մշակելիս առաջացավ սխալ։ {e}')
+
+        else:
+            messages.error(request, 'Խնդրում ենք ընտրել ֆայլ վերբեռնելու համար։')
+        
+        return redirect('add_photo') # Վերահղում ենք նույն էջ՝ թարմացված ցուցակը տեսնելու համար
+
+    # GET հարցման դեպքում (էջը բացելիս)
+    # Բերում ենք օգտատիրոջ բոլոր վերբեռնած նկարները
+    user_images = UserFaceImage.objects.filter(user=request.user)
+    context = {
+        'user_images': user_images
+    }
+    return render(request, 'add_photo.html', context)
