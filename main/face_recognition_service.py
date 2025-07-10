@@ -41,3 +41,4 @@ def recognize_face(image_data):
         return most_common_id, f"Ճանաչումը հաջողվեց (վստահություն՝ {confidence:.0%})։"
     else:
         return None, f"Համընկնումը բավարար չէ (վստահություն՝ {confidence:.0%})։"
+    
