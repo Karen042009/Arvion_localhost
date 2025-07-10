@@ -1,7 +1,18 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 import uuid
+# Ավելացրու սա models.py-ի սկզբում, import-ներից հետո
+import os
 
+def face_recognition_image_path(instance, filename):
+    """
+    Ճանաչման նկարները կպահպանվեն 'face_images/<user_id>/...' թղթապանակում
+    """
+    user_id_str = 'unknown'
+    if hasattr(instance, 'user') and instance.user:
+        user_id_str = str(instance.user.id)
+    
+    return os.path.join('face', user_id_str, filename)
 
 class Gender(models.Model):
     name = models.CharField(max_length=20, unique=True, verbose_name="Անվանում")
@@ -70,6 +81,7 @@ class Allergy(models.Model):
     def __str__(self):
         return self.name
 
+
 def profile_pic_path(instance, filename):
     """
     Նկարները կվերբեռնվեն MEDIA_ROOT/profile_pics/<user_email>/<filename> ճանապարհով։
@@ -78,8 +90,11 @@ def profile_pic_path(instance, filename):
     # Քանի որ instance-ն արդեն CustomUser օբյեկտն է, մենք պարզապես դիմում ենք նրա email դաշտին
     folder_name = instance.email if instance.email else str(instance.id)
     # Ես փոխել եմ "face" թղթապանակի անունը "profile_pics"-ի՝ ավելի տրամաբանական լինելու համար
-    return os.path.join('face', folder_name, filename)
+    return os.path.join("face", folder_name, filename)
+
+
 class CustomUser(AbstractUser):
+    # ... (date_of_birth, gender, phone_number, address, emergency_contact_phone) ...
     date_of_birth = models.DateField(
         null=True, blank=True, verbose_name="Ծննդյան ամսաթիվ"
     )
@@ -93,19 +108,19 @@ class CustomUser(AbstractUser):
     emergency_contact_phone = models.CharField(
         max_length=25, blank=True, verbose_name="Վստահված հեռախոսահամար"
     )
+
+    # Կիրառում ենք մեր նոր, ընդհանուր ֆունկցիան
     profile_picture = models.ImageField(
-        upload_to=profile_pic_path, # Նախկին "profile_pics/"-ի փոխարեն նշում ենք մեր ֆունկցիան
-        null=True, 
-        blank=True, 
-        verbose_name="Պրոֆիլի նկար"
+        upload_to=profile_pic_path, null=True, blank=True, verbose_name="Պրոֆիլի նկար"
     )
-    
+
     public_profile_id = models.UUIDField(
         default=uuid.uuid4, editable=False, unique=True, verbose_name="Հանրային ID (QR)"
     )
 
     def __str__(self):
-        return self.get_full_name() or self.username
+        full_name = self.get_full_name()
+        return full_name if full_name else self.username
 
 
 class DoctorProfile(models.Model):
@@ -235,24 +250,28 @@ def user_directory_path(instance, filename):
 # ...
 
 
-# Այժմ փոփոխիր UserFaceImage մոդելը
+# Ավելացրու սա models.py-ի ամենավերջում
+
 class UserFaceImage(models.Model):
     user = models.ForeignKey(
         CustomUser,
         on_delete=models.CASCADE,
-        related_name="face_images",
-        verbose_name="Օգտատեր",
+        related_name='face_images',
+        verbose_name="Օգտատեր"
     )
-    # Այստեղ upload_to-ին տալիս ենք մեր ստեղծած ֆունկցիան
-    image = models.ImageField(upload_to=user_directory_path, verbose_name="Նկար")
+    image = models.ImageField(
+        upload_to=face_recognition_image_path,
+        verbose_name="Ճանաչման նկար"
+    )
     uploaded_at = models.DateTimeField(
-        auto_now_add=True, verbose_name="Վերբեռնման ամսաթիվ"
+        auto_now_add=True,
+        verbose_name="Վերբեռնման ամսաթիվ"
     )
 
     class Meta:
-        verbose_name = "Դեմքի նկար"
-        verbose_name_plural = "Դեմքի նկարներ"
-        ordering = ["-uploaded_at"]
+        verbose_name = "Դեմքի ճանաչման նկար"
+        verbose_name_plural = "Դեմքի ճանաչման նկարներ"
+        ordering = ['-uploaded_at']
 
     def __str__(self):
-        return f"Նկար {self.user.username}-ի համար, վերբեռնված՝ {self.uploaded_at.strftime('%Y-%m-%d %H:%M')}"
+        return f"Նկար {self.user.username}-ի համար, վերբեռնված՝ {self.uploaded_at.strftime('%Y-%m-%d')}"

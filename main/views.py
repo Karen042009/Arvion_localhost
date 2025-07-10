@@ -30,6 +30,7 @@ from .models import (
     PatientProfile,
     PatientSurgery,
     Surgery,
+    UserFaceImage,
 )
 
 
@@ -430,28 +431,31 @@ def recognize_face(image_data):
     else:
         return None, "Դեմքը չի ճանաչվել (համընկնում չի գտնվել բազայում)։"
 
+# your_app/views.py
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from . import face_recognition_service # Import ենք անում մեր նոր սերվիսը
+
+# ... (ձեր մյուս view-ները՝ profile_view, settings_view, add_photo_view և այլն) ...
 
 @login_required
 def search_patient_by_photo(request):
     if not hasattr(request.user, "doctor_profile"):
         messages.error(request, "Այս էջը հասանելի է միայն բժիշկներին։")
         return redirect("profile")
-
     if request.method == "POST":
         if "patient_photo" not in request.FILES:
             messages.error(request, "Խնդրում ենք ընտրել ֆայլ։")
             return redirect("search_patient_by_photo")
-
         uploaded_file = request.FILES["patient_photo"]
-
-        user_id, message_text = recognize_face(uploaded_file)
-
+        user_id, message_text = face_recognition_service.recognize_face(uploaded_file)
         if user_id:
-            return redirect("patient_details", user_id=user_id)
+            messages.success(request, message_text)
+            return redirect("patient_details", user_id=user_id) 
         else:
             messages.error(request, message_text)
             return redirect("search_patient_by_photo")
-
     return render(request, "search_patient_by_photo.html")
 
 
@@ -479,12 +483,6 @@ def patient_details_view(request, user_id):
     }
     return render(request, "patient_details.html", context)
 
-# views.py
-
-# Avelacru importneri cankum
-from .models import UserFaceImage
-
-# ... qo mnacac view-nery
 
 @login_required
 def add_photo_view(request):
