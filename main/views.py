@@ -16,7 +16,7 @@ from django.db import IntegrityError, transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from .management.commands.train_face_model import extract_embedding
+from . import face_recognition_service
 from .models import (
     Allergy,
     BloodGroup,
@@ -438,7 +438,6 @@ from django.contrib import messages
 from . import face_recognition_service # Import ենք անում մեր նոր սերվիսը
 
 # ... (ձեր մյուս view-ները՝ profile_view, settings_view, add_photo_view և այլն) ...
-
 @login_required
 def search_patient_by_photo(request):
     if not hasattr(request.user, "doctor_profile"):
@@ -448,16 +447,17 @@ def search_patient_by_photo(request):
         if "patient_photo" not in request.FILES:
             messages.error(request, "Խնդրում ենք ընտրել ֆայլ։")
             return redirect("search_patient_by_photo")
-        uploaded_file = request.FILES["patient_photo"]
-        user_id, message_text = face_recognition_service.recognize_face(uploaded_file)
+        
+        user_id, message_text = face_recognition_service.recognize_face(request.FILES["patient_photo"])
+        
         if user_id:
             messages.success(request, message_text)
             return redirect("patient_details", user_id=user_id) 
         else:
             messages.error(request, message_text)
             return redirect("search_patient_by_photo")
+            
     return render(request, "search_patient_by_photo.html")
-
 
 @login_required
 def patient_details_view(request, user_id):
@@ -483,9 +483,56 @@ def patient_details_view(request, user_id):
     }
     return render(request, "patient_details.html", context)
 
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+import numpy as np
+import cv2
+from .models import UserFaceImage
+# Import ենք անում մեր սերվիսը և դրա extract_embedding ֆունկցիան
+from . import face_recognition_service 
+
+# ... (ձեր մյուս view-ները, օրինակ՝ profile_view, settings_view) ...
 
 @login_required
 def add_photo_view(request):
+    """
+    Թույլ է տալիս պացիենտներին ավելացնել նկարներ դեմքի ճանաչման համար։
+    """
+    if not hasattr(request.user, 'patient_profile'):
+        messages.error(request, 'Միայն պացիենտները կարող են իրենց նկարներն ավելացնել։')
+        return redirect('profile')
+
+    if request.method == 'POST':
+        if 'face_photo' in request.FILES:
+            image_file = request.FILES['face_photo']
+            try:
+                # Կարդում ենք ֆայլը և փոխակերպում cv2-ի համար հասկանալի ֆորմատի
+                image_data = image_file.read()
+                image_cv2 = cv2.imdecode(np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR)
+
+                # Կանչում ենք ճիշտ ֆունկցիան՝ սերվիսից
+                embedding = face_recognition_service.extract_embedding(image_cv2)
+
+                if embedding is None:
+                    messages.error(request, 'Նկարում դեմք չի հայտնաբերվել։ Խնդրում ենք փորձել ավելի պարզ, լուսավոր և դիմային նկար։')
+                else:
+                    # Եթե դեմքը հաջողությամբ հայտնաբերվել է, պահպանում ենք նկարը
+                    image_file.seek(0) # Վերադարձնում ենք ֆայլի կուրսորը սկիզբ
+                    UserFaceImage.objects.create(user=request.user, image=image_file)
+                    messages.success(request, 'Նկարը հաջողությամբ վերբեռնվեց։')
+            
+            except Exception as e:
+                messages.error(request, f'Նկարը մշակելիս առաջացավ սխալ։ {e}')
+        else:
+            messages.error(request, 'Խնդրում ենք ընտրել ֆայլ վերբեռնելու համար։')
+        
+        return redirect('add_photo')
+
+    # GET հարցման դեպքում ցուցադրում ենք օգտատիրոջ արդեն իսկ վերբեռնած նկարները
+    user_images = UserFaceImage.objects.filter(user=request.user)
+    context = { 'user_images': user_images }
+    return render(request, 'add_photo.html', context)
     # Ստուգում, որ միայն պացիենտները կարողանան նկար ավելացնել
     if not hasattr(request.user, 'patient_profile'):
         messages.error(request, 'Միայն պացիենտները կարող են իրենց նկարներն ավելացնել։')

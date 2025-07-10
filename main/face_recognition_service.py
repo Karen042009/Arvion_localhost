@@ -1,44 +1,70 @@
+# your_app/face_recognition_service.py
 import os, pickle
-from collections import Counter
-import cv2, mediapipe as mp, numpy as np
+import cv2, numpy as np
 from django.conf import settings
+from keras_facenet import FaceNet
 
-_knn_classifier = None
-_model_path = os.path.join(settings.BASE_DIR, "face_models", "face_classifier.pkl")
-DISTANCE_THRESHOLD, CONFIDENCE_THRESHOLD = 0.9, 0.60
+# --- Գլոբալ օբյեկտներ և կարգավորումներ ---
+_model_data, _facenet_embedder = None, None
+_model_path = os.path.join(settings.BASE_DIR, "face_models", "facenet_model.pkl") # Ճիշտ ֆայլի անունը
+SVM_CONFIDENCE_THRESHOLD = 0.75
+KNN_DISTANCE_THRESHOLD = 0.7 # FaceNet-ի embedding-ների համար շեմը կարելի է ավելի խիստ դարձնել
 
-def _extract_embedding(image):
-    mp_face_mesh = mp.solutions.face_mesh
+def extract_embedding(image):
+    """Հանրային ֆունկցիա՝ FaceNet embedding ստանալու համար։"""
+    global _facenet_embedder
+    if _facenet_embedder is None:
+        try: _facenet_embedder = FaceNet(); print("INFO: FaceNet embedder loaded.")
+        except Exception as e: print(f"ERROR: Could not initialize FaceNet embedder: {e}"); return None
     if image is None: return None
     try:
-        with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1, min_detection_confidence=0.5, refine_landmarks=True) as face_mesh:
-            results = face_mesh.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-            if not results.multi_face_landmarks: return None
-            return np.array([(lm.x, lm.y, lm.z) for lm in results.multi_face_landmarks[0].landmark]).flatten()
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        detections = _facenet_embedder.extract(image_rgb, threshold=0.95)
+        return detections[0]['embedding'] if detections else None
     except Exception: return None
 
 def _load_model():
-    global _knn_classifier
-    if _knn_classifier is None and os.path.exists(_model_path):
+    """Բեռնում է մարզված մոդելը հիշողության մեջ։"""
+    global _model_data
+    if _model_data is None and os.path.exists(_model_path):
         try:
-            with open(_model_path, "rb") as f: _knn_classifier = pickle.load(f)
-            print("INFO: Face recognition model loaded successfully into memory.")
-        except Exception as e: print(f"ERROR: Could not load face recognition model: {e}")
+            with open(_model_path, "rb") as f: _model_data = pickle.load(f)
+            model_type = _model_data.get("type", "unknown").upper()
+            print(f"INFO: Custom recognition model (TYPE: {model_type}) loaded.")
+        except Exception as e: print(f"ERROR: Could not load custom model: {e}")
 
 def recognize_face(image_data):
     _load_model()
-    if _knn_classifier is None: return None, "Մոդելը բեռնված չէ կամ գոյություն չունի։"
+    if _model_data is None: return None, "Ճանաչման մոդելը բեռնված չէ։"
+    
     try: image = cv2.imdecode(np.frombuffer(image_data.read(), np.uint8), cv2.IMREAD_COLOR)
     except Exception: return None, "Նկարի ֆորմատը սխալ է։"
-    embedding = _extract_embedding(image)
+
+    embedding = extract_embedding(image)
     if embedding is None: return None, "Նկարում դեմք չի հայտնաբերվել։"
-    distances, indices = _knn_classifier.kneighbors([embedding])
-    if distances[0][0] > DISTANCE_THRESHOLD: return None, "Դեմքը չի ճանաչվել (բազայում նմանը չի գտնվել)։"
-    closest_user_ids = [_knn_classifier.classes_[i] for i in indices[0]]
-    most_common_id, best_match_count = Counter(closest_user_ids).most_common(1)[0]
-    confidence = best_match_count / _knn_classifier.n_neighbors
-    if confidence >= CONFIDENCE_THRESHOLD:
-        return most_common_id, f"Ճանաչումը հաջողվեց (վստահություն՝ {confidence:.0%})։"
-    else:
-        return None, f"Համընկնումը բավարար չէ (վստահություն՝ {confidence:.0%})։"
     
+    model_type = _model_data.get("type")
+
+    if model_type == "svm":
+        svm_clf, label_encoder = _model_data["classifier"], _model_data["label_encoder"]
+        probabilities = svm_clf.predict_proba([embedding])[0]
+        best_class_index = np.argmax(probabilities)
+        confidence = probabilities[best_class_index]
+        if confidence >= SVM_CONFIDENCE_THRESHOLD:
+            predicted_label = svm_clf.classes_[best_class_index]
+            predicted_user_id = label_encoder.inverse_transform([predicted_label])[0]
+            return predicted_user_id, f"Ճանաչումը հաջողվեց (վստահություն՝ {confidence:.0%})։"
+        else:
+            return None, f"Համընկնումը բավարար չէ (վստահություն՝ {confidence:.0%})։"
+
+    elif model_type == "knn":
+        knn_clf = _model_data["classifier"]
+        distances, _ = knn_clf.kneighbors([embedding], n_neighbors=1)
+        if distances[0][0] <= KNN_DISTANCE_THRESHOLD:
+            predicted_user_id = knn_clf.predict([embedding])[0]
+            return predicted_user_id, "Ճանաչումը հաջողվեց (պարզ մոդել)։"
+        else:
+            return None, "Դեմքը չի ճանաչվել (պարզ մոդել)։"
+            
+    else:
+        return None, "Մոդելի տեսակն անհայտ է։"
