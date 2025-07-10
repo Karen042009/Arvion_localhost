@@ -46,11 +46,12 @@
                   <div class="form-group" style="margin-top:0;">
                       <label for="id_gender">Սեռ</label>
                       <select name="gender" id="id_gender" class="form-select">
-                          <option value="">Իգական</option>
-                          <option value="">Արական</option>
-                          {% for gender in all_genders %}
-                            <option value="{{ gender.id }}" {% if user.gender.id == gender.id %}selected{% endif %}>{{ gender.name }}</option>
-                          {% endfor %}
+                        <option value="" style="color: #000000">---------</option> 
+                        <option value="" style="color:rgb(53, 44, 44)">Իգական</option>
+                        <option value="" style="color:rgb(53, 44, 44)">Արական</option>
+                        {% for gender in all_genders %}
+                        <option value="{{ gender.id }}" {% if user.gender.id == gender.id %}selected{% endif %}>{{ gender.name }}</option>
+                        {% endfor %}
                       </select>
                   </div>
                   <div class="form-group" style="margin-top:0;"><label for="id_phone_number">Հեռախոսահամար</label><input type="tel" id="id_phone_number" name="phone_number" class="form-input" value="{{ user.phone_number|default_if_none:'' }}"></div>
