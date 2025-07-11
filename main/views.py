@@ -414,7 +414,7 @@ def recognize_face(image_data):
     nparr = np.frombuffer(image_data.read(), np.uint8)
     image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-    embedding = extract_embedding(image)
+    embedding = face_recognition_service.extract_embedding(image)
     if embedding is None:
         return None, "Նկարում դեմք չի հայտնաբերվել։"
 
